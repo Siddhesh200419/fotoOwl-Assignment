@@ -8,6 +8,8 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+FotoOwl_RN_Assignment_PRD.md
+AGENTS.md
 
 # Native
 .kotlin/
