@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,14 @@ import {
   Platform,
 } from 'react-native';
 import { useGalleryImages } from '../../hooks/useGalleryImages';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { theme } from '../../theme/theme';
+import { PicsumImage } from '../../types';
 import ImageCard from '../../components/ImageCard';
 import EmptyState from '../../components/EmptyState';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import SearchBar from '../../components/SearchBar';
+import FilterChips, { FilterValue } from '../../components/FilterChips';
 
 const { width } = Dimensions.get('window');
 
@@ -30,7 +34,17 @@ const SkeletonCard = () => {
   );
 };
 
+/** Returns true if the author's first initial falls in A–M (case-insensitive). */
+function isAtoM(author: string): boolean {
+  const initial = author.trim()[0]?.toUpperCase() ?? '';
+  return initial >= 'A' && initial <= 'M';
+}
+
 export default function HomeScreen() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<FilterValue>('All');
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
+
   const {
     data,
     isLoading,
@@ -42,10 +56,32 @@ export default function HomeScreen() {
     isRefetching,
   } = useGalleryImages(20);
 
-  // Flatten the pages array returned by useInfiniteQuery
-  const images = data?.pages.flatMap((page) => page) || [];
+  // Flatten all fetched pages into one flat list
+  const allImages: PicsumImage[] = data?.pages.flatMap((page) => page) ?? [];
+
+  // Apply filter chip first, then search — both client-side on fetched pages only
+  const filteredImages = useMemo(() => {
+    let result = allImages;
+
+    // Filter by author initial bucket
+    if (activeFilter === 'A-M') {
+      result = result.filter((img) => isAtoM(img.author));
+    } else if (activeFilter === 'N-Z') {
+      result = result.filter((img) => !isAtoM(img.author));
+    }
+
+    // Search by author name (case-insensitive)
+    if (debouncedQuery.trim()) {
+      const q = debouncedQuery.toLowerCase();
+      result = result.filter((img) => img.author.toLowerCase().includes(q));
+    }
+
+    return result;
+  }, [allImages, activeFilter, debouncedQuery]);
 
   const handleEndReached = () => {
+    // Only paginate when not actively filtering — filtering operates on fetched pages;
+    // scrolling more extends what's searchable (per AGENTS.md known assumption).
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
@@ -60,6 +96,16 @@ export default function HomeScreen() {
     );
   };
 
+  const renderHeader = () => (
+    <View style={styles.controls}>
+      <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
+      <View style={styles.filterRow}>
+        <FilterChips selected={activeFilter} onSelect={setActiveFilter} />
+      </View>
+    </View>
+  );
+
+  // ── Initial skeleton load ──────────────────────────────────────────────
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -67,9 +113,10 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Gallery</Text>
         </View>
+        {renderHeader()}
         <FlatList
           data={Array.from({ length: 6 })}
-          keyExtractor={(_, index) => index.toString()}
+          keyExtractor={(_, i) => i.toString()}
           numColumns={2}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContainer}
@@ -80,7 +127,8 @@ export default function HomeScreen() {
     );
   }
 
-  if (isError && images.length === 0) {
+  // ── Full error (no data at all) ────────────────────────────────────────
+  if (isError && allImages.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -91,15 +139,16 @@ export default function HomeScreen() {
           <EmptyState
             iconName="cloud-offline-outline"
             title="Failed to Load Images"
-            description="There was a problem fetching images from the Picsum server. Check your connection."
+            description="There was a problem fetching images. Check your connection and try again."
             actionLabel="Retry"
-            onAction={refetch}
+            onAction={() => void refetch()}
           />
         </View>
       </SafeAreaView>
     );
   }
 
+  // ── Main gallery list ──────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -108,16 +157,17 @@ export default function HomeScreen() {
       </View>
 
       <FlatList
-        data={images}
+        data={filteredImages}
         keyExtractor={(item, index) => `${item.id}-${index}`}
         numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.listContainer}
+        ListHeaderComponent={renderHeader}
         renderItem={({ item }) => (
           <ImageCard
             item={item}
             onPress={() => console.log('Tapped image:', item.id)}
-            onFavoriteToggle={() => console.log('Toggled favorite for:', item.id)}
+            onFavoriteToggle={() => console.log('Toggled favourite:', item.id)}
           />
         )}
         onRefresh={refetch}
@@ -127,13 +177,18 @@ export default function HomeScreen() {
         ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <EmptyState
-            title="No Images Available"
-            description="There are currently no photos to display in the gallery."
-            actionLabel="Refresh"
-            onAction={refetch}
+            iconName="search-outline"
+            title="No Results Found"
+            description={
+              debouncedQuery
+                ? `No images found for "${debouncedQuery}" in the "${activeFilter}" filter.`
+                : `No images match the "${activeFilter}" filter yet. Scroll down to load more.`
+            }
           />
         }
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       />
     </SafeAreaView>
   );
@@ -162,9 +217,18 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.titleMedium.fontWeight,
     color: theme.colors.light.text,
   },
+  controls: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.light.background,
+    gap: theme.spacing.sm,
+  },
+  filterRow: {
+    marginTop: theme.spacing.xs,
+  },
   listContainer: {
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
     paddingBottom: 24,
   },
   row: {
@@ -174,7 +238,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
     alignItems: 'center',
   },
-  // Skeleton Styles
+  // ── Skeleton ────────────────────────────────────────────────────────────
   skeletonCard: {
     backgroundColor: '#E5E7EB',
     borderRadius: theme.borderRadius.lg,
