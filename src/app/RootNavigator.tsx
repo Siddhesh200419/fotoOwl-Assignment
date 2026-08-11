@@ -4,12 +4,17 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import AuthStack from './AuthStack';
 import MainTabs from './MainTabs';
+import SplashScreen from '../screens/SplashScreen';
 import { useAuthStore } from '../store/authStore';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, hasHydrated } = useAuthStore();
+
+  if (!hasHydrated) {
+    return <SplashScreen />;
+  }
 
   return (
     <NavigationContainer>
