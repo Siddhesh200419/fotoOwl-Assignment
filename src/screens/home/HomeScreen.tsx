@@ -18,6 +18,7 @@ import EmptyState from '../../components/EmptyState';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SearchBar from '../../components/SearchBar';
 import FilterChips, { FilterValue } from '../../components/FilterChips';
+import { useFavouritesStore } from '../../store/favoritesStore';
 
 const { width } = Dimensions.get('window');
 
@@ -43,6 +44,7 @@ function isAtoM(author: string): boolean {
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterValue>('All');
+  const { isFavourite, toggleFavourite } = useFavouritesStore();
   const debouncedQuery = useDebouncedValue(searchQuery, 300);
 
   const {
@@ -167,7 +169,8 @@ export default function HomeScreen() {
           <ImageCard
             item={item}
             onPress={() => console.log('Tapped image:', item.id)}
-            onFavoriteToggle={() => console.log('Toggled favourite:', item.id)}
+            isFavorite={isFavourite(item.id)}
+            onFavoriteToggle={() => toggleFavourite(item)}
           />
         )}
         onRefresh={refetch}
