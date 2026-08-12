@@ -148,7 +148,7 @@ Sharing uses the system share sheet and does not require extra permissions beyon
 ## Known Limitations
 
 - Authentication is local-only (no backend server)
-- Passwords are stored in plain text on device storage — suitable for demo/assignment use only
+- Passwords are stored in plain text on device storage 
 - Requires an internet connection to load gallery images from Picsum
 
 ## License
