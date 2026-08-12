@@ -1,37 +1,26 @@
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 
-export interface DownloadResult {
+export interface MediaActionResult {
   success: boolean;
   message: string;
 }
 
-/**
- * Returns a writable directory for temporary cache files.
- * Handles Expo SDK version differences defensively.
- */
-function getCacheDir(): string {
-  const fs = FileSystem as unknown as {
-    cacheDirectory?: string;
-    documentDirectory?: string;
-  };
-  const dir = fs.cacheDirectory ?? fs.documentDirectory;
-  if (!dir) {
-    throw new Error('No writable cache directory available on this device.');
-  }
-  return dir;
+async function downloadToCache(url: string, filename: string): Promise<File> {
+  const destination = new File(Paths.cache, filename);
+  return File.downloadFileAsync(url, destination, { idempotent: true });
 }
 
 /**
  * Downloads a remote image to the device gallery.
- * Requests MEDIA_LIBRARY permission first; explains why if denied.
+ * Requests media-library permission first; explains why if denied.
  */
 export async function downloadImageToGallery(
   url: string,
   imageId: string
-): Promise<DownloadResult> {
-  const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync();
+): Promise<MediaActionResult> {
+  const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync(true);
 
   if (status !== 'granted') {
     return {
@@ -42,37 +31,39 @@ export async function downloadImageToGallery(
     };
   }
 
-  const localUri = `${getCacheDir()}picsum_${imageId}.jpg`;
-
   try {
-    const { status: dlStatus } = await FileSystem.downloadAsync(url, localUri);
-    if (dlStatus !== 200) {
-      return { success: false, message: 'Download failed. Please check your connection.' };
-    }
-  } catch {
-    return { success: false, message: 'Download failed. Please check your connection.' };
-  }
-
-  try {
-    await MediaLibrary.saveToLibraryAsync(localUri);
+    const file = await downloadToCache(url, `picsum_${imageId}.jpg`);
+    await MediaLibrary.saveToLibraryAsync(file.uri);
     return { success: true, message: 'Image saved to your gallery!' };
-  } catch {
-    return { success: false, message: 'Failed to save image to gallery.' };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, message: `Failed to save image. ${detail}` };
   }
 }
 
 /**
- * Shares a URL string using the OS share sheet.
+ * Downloads the image locally, then opens the OS share sheet.
  */
-export async function shareImageUrl(url: string): Promise<void> {
+export async function shareImageUrl(url: string, imageId: string): Promise<MediaActionResult> {
   const available = await Sharing.isAvailableAsync();
-  if (!available) return;
+  if (!available) {
+    return { success: false, message: 'Sharing is not available on this device.' };
+  }
 
-  const localUri = `${getCacheDir()}share_temp.jpg`;
   try {
-    await FileSystem.downloadAsync(url, localUri);
-    await Sharing.shareAsync(localUri, { mimeType: 'image/jpeg' });
-  } catch {
-    // Silently fail — share is a bonus feature
+    const file = await downloadToCache(url, `share_${imageId}.jpg`);
+    await Sharing.shareAsync(file.uri, {
+      mimeType: 'image/jpeg',
+      dialogTitle: 'Share photo',
+      UTI: 'public.jpeg',
+    });
+    return { success: true, message: 'Share sheet opened.' };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Unknown error';
+    // User dismissed the share sheet — not a real failure.
+    if (/cancel|dismiss|abort/i.test(detail)) {
+      return { success: true, message: 'Share cancelled.' };
+    }
+    return { success: false, message: `Failed to share image. ${detail}` };
   }
 }

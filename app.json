@@ -28,6 +28,14 @@
     "plugins": [
       "expo-router",
       [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow FotoOwl to access your photos.",
+          "savePhotosPermission": "Allow FotoOwl to save photos to your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

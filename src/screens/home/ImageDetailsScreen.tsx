@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { theme } from '../../theme/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useIsFavourite, useToggleFavourite } from '../../store/favoritesStore';
 import { downloadImageToGallery, shareImageUrl } from '../../services/mediaDownload';
+import { getDetailUrl, getDownloadUrl, getThumbnailUrl } from '../../utils/imageUrls';
 import { hapticMedium, hapticSuccess, hapticTap } from '../../services/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ImageDetails'>;
@@ -33,13 +34,16 @@ export default function ImageDetailsScreen({ route, navigation }: Props) {
 
   const [downloading, setDownloading] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
 
-  const fullSizeUrl = `https://picsum.photos/id/${image.id}/${image.width}/${image.height}`;
+  const thumbnailUrl = getThumbnailUrl(image.id);
+  const detailUrl = getDetailUrl(image.id);
+  const downloadUrl = getDownloadUrl(image.id);
 
   const handleDownload = async () => {
     hapticMedium();
     setDownloading(true);
-    const result = await downloadImageToGallery(fullSizeUrl, image.id);
+    const result = await downloadImageToGallery(downloadUrl, image.id);
     setDownloading(false);
     if (result.success) hapticSuccess();
     Alert.alert(result.success ? 'Saved!' : 'Download Failed', result.message);
@@ -48,9 +52,16 @@ export default function ImageDetailsScreen({ route, navigation }: Props) {
   const handleShare = async () => {
     hapticMedium();
     setSharing(true);
-    await shareImageUrl(fullSizeUrl);
+    const result = await shareImageUrl(downloadUrl, image.id);
     setSharing(false);
+    if (!result.success) {
+      Alert.alert('Share Failed', result.message);
+    }
   };
+
+  const handleImageLoad = useCallback(() => {
+    setImageLoading(false);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -58,11 +69,23 @@ export default function ImageDetailsScreen({ route, navigation }: Props) {
 
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: fullSizeUrl }}
+          source={{ uri: detailUrl }}
+          placeholder={{ uri: thumbnailUrl }}
+          placeholderContentFit="contain"
           style={styles.image}
           contentFit="contain"
-          transition={300}
+          transition={250}
+          cachePolicy="memory-disk"
+          recyclingKey={image.id}
+          onLoad={handleImageLoad}
         />
+
+        {imageLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#FFFFFF" />
+            <Text style={styles.loadingText}>Loading photo…</Text>
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.backButton}
@@ -168,6 +191,18 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
   },
   backButton: {
     position: 'absolute',

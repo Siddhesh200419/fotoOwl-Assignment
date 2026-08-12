@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
+import { useFavouritesStore } from './favoritesStore';
 
 interface AuthState {
   user: User | null;
@@ -19,8 +20,14 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isLoggedIn: false,
       hasHydrated: false,
-      login: (user) => set({ user, isLoggedIn: true }),
-      logout: () => set({ user: null, isLoggedIn: false }),
+      login: (user) => {
+        useFavouritesStore.getState().setActiveUser(user.email);
+        set({ user, isLoggedIn: true });
+      },
+      logout: () => {
+        useFavouritesStore.getState().setActiveUser(null);
+        set({ user: null, isLoggedIn: false });
+      },
       updateUser: (user) => set({ user }),
       setHasHydrated: (state) => set({ hasHydrated: state }),
     }),
@@ -33,6 +40,9 @@ export const useAuthStore = create<AuthState>()(
       }),
       onRehydrateStorage: () => {
         return (state) => {
+          if (state?.user) {
+            useFavouritesStore.getState().setActiveUser(state.user.email);
+          }
           if (state) {
             state.setHasHydrated(true);
           }
