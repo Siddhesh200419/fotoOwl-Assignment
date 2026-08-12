@@ -7,9 +7,6 @@ import {
   Alert,
   ScrollView,
   Dimensions,
-  StatusBar,
-  Platform,
-  SafeAreaView,
   Switch,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -24,6 +21,7 @@ import { User } from '../../types';
 import FormField from '../../components/FormField';
 import RadioGroup from '../../components/RadioGroup';
 import Dropdown from '../../components/Dropdown';
+import ScreenContainer from '../../components/ScreenContainer';
 import { hapticTap, hapticMedium, hapticSuccess, hapticSelection } from '../../services/haptics';
 
 const { width } = Dimensions.get('window');
@@ -180,9 +178,11 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.error }]}>No user session found.</Text>
-      </View>
+      <ScreenContainer>
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: colors.error }]}>No user session found.</Text>
+        </View>
+      </ScreenContainer>
     );
   }
 
@@ -223,12 +223,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={colors.background}
-      />
-
+    <ScreenContainer>
       <View style={[styles.headerBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
         {!isEditing ? (
@@ -477,15 +472,11 @@ export default function ProfileScreen() {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',

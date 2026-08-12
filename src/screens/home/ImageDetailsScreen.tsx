@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -17,9 +17,9 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types';
 import { theme } from '../../theme/theme';
 import { useTheme } from '../../hooks/useTheme';
-import { useIsFavourite, useToggleFavourite } from '../../store/favoritesStore';
+import { useIsFavourite, useFavouritesStore } from '../../store/favoritesStore';
 import { downloadImageToGallery, shareImageUrl } from '../../services/mediaDownload';
-import { getDetailUrl, getDownloadUrl, getThumbnailUrl } from '../../utils/imageUrls';
+import { thumbUrl, fullUrl } from '../../utils/imageUrls';
 import { hapticMedium, hapticSuccess, hapticTap } from '../../services/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ImageDetails'>;
@@ -30,20 +30,16 @@ export default function ImageDetailsScreen({ route, navigation }: Props) {
   const { image } = route.params;
   const { colors } = useTheme();
   const favourite = useIsFavourite(image.id);
-  const toggleFavourite = useToggleFavourite();
+  const toggleFavourite = useFavouritesStore((s) => s.toggleFavourite);
 
   const [downloading, setDownloading] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
-  const thumbnailUrl = getThumbnailUrl(image.id);
-  const detailUrl = getDetailUrl(image.id);
-  const downloadUrl = getDownloadUrl(image.id);
-
   const handleDownload = async () => {
     hapticMedium();
     setDownloading(true);
-    const result = await downloadImageToGallery(downloadUrl, image.id);
+    const result = await downloadImageToGallery(fullUrl(image.id), image.id);
     setDownloading(false);
     if (result.success) hapticSuccess();
     Alert.alert(result.success ? 'Saved!' : 'Download Failed', result.message);
@@ -52,16 +48,12 @@ export default function ImageDetailsScreen({ route, navigation }: Props) {
   const handleShare = async () => {
     hapticMedium();
     setSharing(true);
-    const result = await shareImageUrl(downloadUrl, image.id);
+    const result = await shareImageUrl(fullUrl(image.id), image.id);
     setSharing(false);
     if (!result.success) {
       Alert.alert('Share Failed', result.message);
     }
   };
-
-  const handleImageLoad = useCallback(() => {
-    setImageLoading(false);
-  }, []);
 
   return (
     <View style={styles.container}>
@@ -69,15 +61,15 @@ export default function ImageDetailsScreen({ route, navigation }: Props) {
 
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: detailUrl }}
-          placeholder={{ uri: thumbnailUrl }}
+          source={{ uri: fullUrl(image.id) }}
+          placeholder={{ uri: thumbUrl(image.id) }}
           placeholderContentFit="contain"
           style={styles.image}
           contentFit="contain"
           transition={250}
           cachePolicy="memory-disk"
           recyclingKey={image.id}
-          onLoad={handleImageLoad}
+          onLoad={() => setImageLoading(false)}
         />
 
         {imageLoading && (

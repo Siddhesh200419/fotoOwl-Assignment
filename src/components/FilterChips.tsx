@@ -80,4 +80,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default React.memo(FilterChips);
+export default FilterChips;

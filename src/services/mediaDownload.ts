@@ -7,32 +7,18 @@ export interface MediaActionResult {
   message: string;
 }
 
-async function downloadToCache(url: string, filename: string): Promise<File> {
-  const destination = new File(Paths.cache, filename);
-  return File.downloadFileAsync(url, destination, { idempotent: true });
-}
-
-/**
- * Downloads a remote image to the device gallery.
- * Requests media-library permission first; explains why if denied.
- */
-export async function downloadImageToGallery(
-  url: string,
-  imageId: string
-): Promise<MediaActionResult> {
-  const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync(true);
-
+export async function downloadImageToGallery(url: string, imageId: string): Promise<MediaActionResult> {
+  const { status } = await MediaLibrary.requestPermissionsAsync(true);
   if (status !== 'granted') {
-    return {
-      success: false,
-      message: canAskAgain
-        ? 'Media library permission is required to save images. Please allow it.'
-        : 'Permission denied. Go to Settings → FotoOwl → Photos and enable access.',
-    };
+    return { success: false, message: 'Permission needed to save photos.' };
   }
 
   try {
-    const file = await downloadToCache(url, `picsum_${imageId}.jpg`);
+    const file = await File.downloadFileAsync(
+      url,
+      new File(Paths.cache, `picsum_${imageId}.jpg`),
+      { idempotent: true }
+    );
     await MediaLibrary.saveToLibraryAsync(file.uri);
     return { success: true, message: 'Image saved to your gallery!' };
   } catch (error) {
@@ -41,17 +27,17 @@ export async function downloadImageToGallery(
   }
 }
 
-/**
- * Downloads the image locally, then opens the OS share sheet.
- */
 export async function shareImageUrl(url: string, imageId: string): Promise<MediaActionResult> {
-  const available = await Sharing.isAvailableAsync();
-  if (!available) {
+  if (!(await Sharing.isAvailableAsync())) {
     return { success: false, message: 'Sharing is not available on this device.' };
   }
 
   try {
-    const file = await downloadToCache(url, `share_${imageId}.jpg`);
+    const file = await File.downloadFileAsync(
+      url,
+      new File(Paths.cache, `share_${imageId}.jpg`),
+      { idempotent: true }
+    );
     await Sharing.shareAsync(file.uri, {
       mimeType: 'image/jpeg',
       dialogTitle: 'Share photo',
@@ -60,7 +46,6 @@ export async function shareImageUrl(url: string, imageId: string): Promise<Media
     return { success: true, message: 'Share sheet opened.' };
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'Unknown error';
-    // User dismissed the share sheet — not a real failure.
     if (/cancel|dismiss|abort/i.test(detail)) {
       return { success: true, message: 'Share cancelled.' };
     }

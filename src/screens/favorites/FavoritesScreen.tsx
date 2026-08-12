@@ -1,12 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Platform,
-} from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { useFavouritesStore } from '../../store/favoritesStore';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { theme } from '../../theme/theme';
@@ -14,9 +7,10 @@ import { useTheme } from '../../hooks/useTheme';
 import SearchBar from '../../components/SearchBar';
 import EmptyState from '../../components/EmptyState';
 import GalleryFlatList from '../../components/GalleryFlatList';
+import ScreenContainer from '../../components/ScreenContainer';
 
 export default function FavoritesScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const favourites = useFavouritesStore((state) => state.favourites);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebouncedValue(searchQuery, 250);
@@ -29,21 +23,18 @@ export default function FavoritesScreen() {
     return allFavourites.filter((img) => img.author.toLowerCase().includes(q));
   }, [allFavourites, debouncedQuery]);
 
-  const emptyDescription = useMemo(
-    () => `No favourites match "${debouncedQuery}".`,
-    [debouncedQuery]
-  );
+  return (
+    <ScreenContainer>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Favourites</Text>
+        {allFavourites.length > 0 && (
+          <Text style={[styles.countText, { color: colors.textSecondary }]}>
+            {allFavourites.length} saved
+          </Text>
+        )}
+      </View>
 
-  if (allFavourites.length === 0) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <StatusBar
-          barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={colors.background}
-        />
-        <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Favourites</Text>
-        </View>
+      {allFavourites.length === 0 ? (
         <View style={styles.center}>
           <EmptyState
             iconName="heart-outline"
@@ -51,44 +42,24 @@ export default function FavoritesScreen() {
             description="Tap the heart icon on any image in the Gallery to save it here."
           />
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={colors.background}
-      />
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Favourites</Text>
-        <Text style={[styles.countText, { color: colors.textSecondary }]}>{allFavourites.length} saved</Text>
-      </View>
-
-      <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search favourites…"
-        />
-      </View>
-
-      <GalleryFlatList
-        images={filteredFavourites}
-        emptyTitle="No Results"
-        emptyDescription={emptyDescription}
-        forceFavorite
-      />
-    </SafeAreaView>
+      ) : (
+        <>
+          <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+            <SearchBar value={searchQuery} onChangeText={setSearchQuery} placeholder="Search favourites…" />
+          </View>
+          <GalleryFlatList
+            images={filteredFavourites}
+            emptyTitle="No Results"
+            emptyDescription={`No favourites match "${debouncedQuery}".`}
+            forceFavorite
+          />
+        </>
+      )}
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
   center: {
     flex: 1,
     justifyContent: 'center',

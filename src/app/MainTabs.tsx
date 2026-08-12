@@ -11,7 +11,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 const Tab = createBottomTabNavigator<MainTabsParamList>();
 
 export default function MainTabs() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -42,12 +42,7 @@ export default function MainTabs() {
           fontSize: 12,
           fontWeight: '500',
         },
-        // Each screen manages its own header bar (SafeAreaView + inline title)
-        // to avoid the duplicate double-header rendering
         headerShown: false,
-        // Status bar style matches the theme background
-        statusBarStyle: isDark ? 'light-content' : 'dark-content',
-        statusBarColor: colors.background,
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />

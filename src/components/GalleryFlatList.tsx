@@ -1,8 +1,8 @@
-import React, { memo, useCallback } from 'react';
+import React from 'react';
 import { FlatList, StyleSheet, View, ViewStyle } from 'react-native';
 import { PicsumImage } from '../types';
 import { theme } from '../theme/theme';
-import GalleryListItem from './GalleryListItem';
+import ImageCard from './ImageCard';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState from './EmptyState';
 
@@ -18,9 +18,7 @@ interface GalleryFlatListProps {
   forceFavorite?: boolean;
 }
 
-const keyExtractor = (item: PicsumImage) => item.id;
-
-function GalleryFlatList({
+export default function GalleryFlatList({
   images,
   emptyTitle,
   emptyDescription,
@@ -31,60 +29,34 @@ function GalleryFlatList({
   contentContainerStyle,
   forceFavorite,
 }: GalleryFlatListProps) {
-  const renderItem = useCallback(
-    ({ item }: { item: PicsumImage }) => (
-      <GalleryListItem item={item} forceFavorite={forceFavorite} />
-    ),
-    [forceFavorite]
-  );
-
-  const renderFooter = useCallback(() => {
-    if (!isFetchingNextPage) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <LoadingSpinner />
-      </View>
-    );
-  }, [isFetchingNextPage]);
-
-  const ListEmptyComponent = useCallback(
-    () => (
-      <EmptyState
-        iconName="search-outline"
-        title={emptyTitle}
-        description={emptyDescription}
-      />
-    ),
-    [emptyTitle, emptyDescription]
-  );
-
   return (
     <FlatList
       data={images}
-      keyExtractor={keyExtractor}
+      keyExtractor={(item) => item.id}
       numColumns={2}
       columnWrapperStyle={styles.row}
       contentContainerStyle={[styles.listContainer, contentContainerStyle]}
-      renderItem={renderItem}
+      renderItem={({ item }) => <ImageCard item={item} forceFavorite={forceFavorite} />}
       onRefresh={onRefresh}
       refreshing={isRefetching}
       onEndReached={onEndReached}
       onEndReachedThreshold={0.5}
-      ListFooterComponent={renderFooter}
-      ListEmptyComponent={ListEmptyComponent}
+      ListFooterComponent={
+        isFetchingNextPage ? (
+          <View style={styles.footerLoader}>
+            <LoadingSpinner />
+          </View>
+        ) : null
+      }
+      ListEmptyComponent={
+        <EmptyState iconName="search-outline" title={emptyTitle} description={emptyDescription} />
+      }
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
-      removeClippedSubviews
-      maxToRenderPerBatch={8}
-      windowSize={7}
-      initialNumToRender={10}
-      updateCellsBatchingPeriod={50}
     />
   );
 }
-
-export default memo(GalleryFlatList);
 
 const styles = StyleSheet.create({
   listContainer: {
