@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { theme } from '../theme/theme';
+import { useTheme } from '../hooks/useTheme';
+import { hapticSelection } from '../services/haptics';
 
 export type FilterValue = 'All' | 'A-M' | 'N-Z';
 
@@ -11,7 +13,8 @@ interface FilterChipsProps {
 
 const FILTERS: FilterValue[] = ['All', 'A-M', 'N-Z'];
 
-export default function FilterChips({ selected, onSelect }: FilterChipsProps) {
+function FilterChips({ selected, onSelect }: FilterChipsProps) {
+  const { colors } = useTheme();
   return (
     <ScrollView
       horizontal
@@ -23,11 +26,29 @@ export default function FilterChips({ selected, onSelect }: FilterChipsProps) {
         return (
           <TouchableOpacity
             key={filter}
-            style={[styles.chip, isActive && styles.chipActive]}
-            onPress={() => onSelect(filter)}
+            style={[
+              styles.chip,
+              {
+                borderColor: isActive ? colors.primary : colors.border,
+                backgroundColor: isActive ? colors.primary : colors.surface,
+              },
+              isActive && styles.chipActive,
+            ]}
+            onPress={() => {
+              hapticSelection();
+              onSelect(filter);
+            }}
             activeOpacity={0.7}
           >
-            <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+            <Text
+              style={[
+                styles.chipText,
+                {
+                  color: isActive ? '#FFFFFF' : colors.textSecondary,
+                },
+                isActive && styles.chipTextActive,
+              ]}
+            >
               {filter}
             </Text>
           </TouchableOpacity>
@@ -48,20 +69,15 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.xs + 2,
     borderRadius: theme.borderRadius.full,
     borderWidth: 1.5,
-    borderColor: theme.colors.light.border,
-    backgroundColor: theme.colors.light.surface,
   },
-  chipActive: {
-    backgroundColor: theme.colors.light.primary,
-    borderColor: theme.colors.light.primary,
-  },
+  chipActive: {},
   chipText: {
     fontSize: 13,
     fontWeight: '500',
-    color: theme.colors.light.textSecondary,
   },
   chipTextActive: {
-    color: '#FFFFFF',
     fontWeight: '600',
   },
 });
+
+export default React.memo(FilterChips);

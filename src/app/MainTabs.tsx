@@ -2,6 +2,8 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { MainTabsParamList } from '../types';
+import { theme } from '../theme/theme';
+import { useTheme } from '../hooks/useTheme';
 import HomeScreen from '../screens/home/HomeScreen';
 import FavoritesScreen from '../screens/favorites/FavoritesScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
@@ -9,6 +11,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 const Tab = createBottomTabNavigator<MainTabsParamList>();
 
 export default function MainTabs() {
+  const { colors, isDark } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -25,9 +28,26 @@ export default function MainTabs() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#4F46E5', // Will wire up dark mode theme dynamically in Phase 8
-        tabBarInactiveTintColor: '#9CA3AF',
-        headerShown: true,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          height: 64,
+          paddingBottom: theme.spacing.md,
+          paddingTop: theme.spacing.xs,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
+        // Each screen manages its own header bar (SafeAreaView + inline title)
+        // to avoid the duplicate double-header rendering
+        headerShown: false,
+        // Status bar style matches the theme background
+        statusBarStyle: isDark ? 'light-content' : 'dark-content',
+        statusBarColor: colors.background,
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />

@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { theme } from '../theme/theme';
+import { useTheme } from '../hooks/useTheme';
+import { hapticSelection } from '../services/haptics';
 
 interface RadioGroupProps {
   label: string;
@@ -11,9 +13,10 @@ interface RadioGroupProps {
 }
 
 export default function RadioGroup({ label, options, selectedValue, onValueChange, error }: RadioGroupProps) {
+  const { colors } = useTheme();
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
       <View style={styles.optionsContainer}>
         {options.map((option) => {
           const isSelected = selectedValue === option;
@@ -21,18 +24,30 @@ export default function RadioGroup({ label, options, selectedValue, onValueChang
             <TouchableOpacity
               key={option}
               style={styles.optionButton}
-              onPress={() => onValueChange(option)}
+              onPress={() => {
+                hapticSelection();
+                onValueChange(option);
+              }}
               activeOpacity={0.7}
             >
-              <View style={[styles.outerCircle, isSelected && styles.outerCircleSelected]}>
-                {isSelected && <View style={styles.innerCircle} />}
+              <View
+                style={[
+                  styles.outerCircle,
+                  {
+                    borderColor: isSelected ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                {isSelected && (
+                  <View style={[styles.innerCircle, { backgroundColor: colors.primary }]} />
+                )}
               </View>
-              <Text style={styles.optionText}>{option}</Text>
+              <Text style={[styles.optionText, { color: colors.text }]}>{option}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 }
@@ -45,7 +60,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.light.text,
     marginBottom: theme.spacing.sm,
   },
   optionsContainer: {
@@ -63,27 +77,20 @@ const styles = StyleSheet.create({
     width: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: theme.colors.light.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: theme.spacing.xs,
-  },
-  outerCircleSelected: {
-    borderColor: theme.colors.light.primary,
   },
   innerCircle: {
     height: 10,
     width: 10,
     borderRadius: 5,
-    backgroundColor: theme.colors.light.primary,
   },
   optionText: {
     fontSize: 15,
-    color: theme.colors.light.text,
   },
   errorText: {
     fontSize: 12,
-    color: theme.colors.light.error,
     marginTop: theme.spacing.xs,
   },
 });

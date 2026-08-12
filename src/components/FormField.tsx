@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TextInputProps, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme/theme';
+import { useTheme } from '../hooks/useTheme';
 
 interface FormFieldProps extends TextInputProps {
   label: string;
@@ -11,25 +12,28 @@ interface FormFieldProps extends TextInputProps {
 export default function FormField({ label, error, secureTextEntry, style, ...props }: FormFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const { colors } = useTheme();
 
   const shouldSecure = secureTextEntry && !isPasswordVisible;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
       <View
         style={[
           styles.inputContainer,
-          isFocused && styles.inputFocused,
-          !!error && styles.inputError,
+          {
+            borderColor: error ? colors.error : isFocused ? colors.primary : colors.border,
+            backgroundColor: colors.surface,
+          },
         ]}
       >
         <TextInput
-          style={[styles.input, style]}
+          style={[styles.input, { color: colors.text }, style]}
           secureTextEntry={shouldSecure}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholderTextColor={theme.colors.light.placeholder}
+          placeholderTextColor={colors.placeholder}
           autoCapitalize="none"
           {...props}
         />
@@ -42,12 +46,12 @@ export default function FormField({ label, error, secureTextEntry, style, ...pro
             <Ionicons
               name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={theme.colors.light.textSecondary}
+              color={colors.textSecondary}
             />
           </TouchableOpacity>
         )}
       </View>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 }
@@ -60,30 +64,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.light.text,
     marginBottom: theme.spacing.xs,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.light.border,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.light.surface,
     paddingHorizontal: theme.spacing.md,
     height: 48,
-  },
-  inputFocused: {
-    borderColor: theme.colors.light.primary,
-  },
-  inputError: {
-    borderColor: theme.colors.light.error,
   },
   input: {
     flex: 1,
     height: '100%',
     fontSize: 15,
-    color: theme.colors.light.text,
     padding: 0,
   },
   eyeButton: {
@@ -93,7 +87,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: theme.colors.light.error,
     marginTop: theme.spacing.xs,
   },
 });

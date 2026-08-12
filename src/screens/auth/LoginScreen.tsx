@@ -7,14 +7,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../types';
 import { theme } from '../../theme/theme';
+import { useTheme } from '../../hooks/useTheme';
 import { useForm } from '../../hooks/useForm';
 import { storage } from '../../services/storage';
 import { useAuthStore } from '../../store/authStore';
 import FormField from '../../components/FormField';
+import { hapticMedium, hapticSuccess } from '../../services/haptics';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -25,6 +29,7 @@ const initialValues = {
 
 export default function LoginScreen({ navigation }: Props) {
   const login = useAuthStore((state) => state.login);
+  const { colors, isDark } = useTheme();
 
   const validateForm = (values: typeof initialValues) => {
     const errors: Partial<Record<keyof typeof initialValues, string>> = {};
@@ -64,8 +69,7 @@ export default function LoginScreen({ navigation }: Props) {
         return;
       }
 
-      // Successful Login
-      // Clean up sensitive info from stored state if needed (password)
+      hapticSuccess();
       const { password, ...safeUser } = user;
       login(safeUser);
     } catch (error) {
@@ -74,59 +78,76 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Log in to access your dashboard</Text>
-        </View>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Log in to access your dashboard
+            </Text>
+          </View>
 
-        <View style={styles.form}>
-          <FormField
-            label="Email"
-            placeholder="john.doe@example.com"
-            keyboardType="email-address"
-            value={values.email}
-            onChangeText={(text) => handleChange('email', text)}
-            error={errors.email}
-          />
+          <View style={styles.form}>
+            <FormField
+              label="Email"
+              placeholder="john.doe@example.com"
+              keyboardType="email-address"
+              value={values.email}
+              onChangeText={(text) => handleChange('email', text)}
+              error={errors.email}
+            />
 
-          <FormField
-            label="Password"
-            placeholder="••••••"
-            secureTextEntry
-            value={values.password}
-            onChangeText={(text) => handleChange('password', text)}
-            error={errors.password}
-          />
+            <FormField
+              label="Password"
+              placeholder="••••••"
+              secureTextEntry
+              value={values.password}
+              onChangeText={(text) => handleChange('password', text)}
+              error={errors.password}
+            />
 
-          <TouchableOpacity
-            style={styles.submitButton}
-            onPress={handleSubmit(onSubmit)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.submitButtonText}>Log In</Text>
-          </TouchableOpacity>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerLink}>Sign Up</Text>
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: colors.primary }]}
+              onPress={handleSubmit(onSubmit)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.submitButtonText}>Log In</Text>
             </TouchableOpacity>
+
+            <View style={styles.footer}>
+              <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                Don't have an account?{' '}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  hapticMedium();
+                  navigation.navigate('Register');
+                }}
+              >
+                <Text style={[styles.registerLink, { color: colors.primary }]}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: theme.colors.light.background,
     justifyContent: 'center',
   },
   content: {
@@ -138,24 +159,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.titleLarge.fontSize,
     fontWeight: theme.typography.titleLarge.fontWeight,
-    color: theme.colors.light.text,
   },
   subtitle: {
     fontSize: 15,
-    color: theme.colors.light.textSecondary,
     marginTop: theme.spacing.xs,
   },
   form: {
     width: '100%',
   },
   submitButton: {
-    backgroundColor: theme.colors.light.primary,
     height: 50,
     borderRadius: theme.borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: theme.spacing.lg,
-    shadowColor: theme.colors.light.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -174,11 +191,9 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: theme.colors.light.textSecondary,
   },
   registerLink: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.light.primary,
   },
 });

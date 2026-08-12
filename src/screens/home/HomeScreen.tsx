@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,13 +12,13 @@ import {
 import { useGalleryImages } from '../../hooks/useGalleryImages';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { theme } from '../../theme/theme';
+import { useTheme } from '../../hooks/useTheme';
 import { PicsumImage } from '../../types';
-import ImageCard from '../../components/ImageCard';
 import EmptyState from '../../components/EmptyState';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SearchBar from '../../components/SearchBar';
 import FilterChips, { FilterValue } from '../../components/FilterChips';
-import { useFavouritesStore } from '../../store/favoritesStore';
+import GalleryFlatList from '../../components/GalleryFlatList';
 
 const { width } = Dimensions.get('window');
 
@@ -35,17 +35,16 @@ const SkeletonCard = () => {
   );
 };
 
-/** Returns true if the author's first initial falls in A–M (case-insensitive). */
 function isAtoM(author: string): boolean {
   const initial = author.trim()[0]?.toUpperCase() ?? '';
   return initial >= 'A' && initial <= 'M';
 }
 
 export default function HomeScreen() {
+  const { colors, isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterValue>('All');
-  const { isFavourite, toggleFavourite } = useFavouritesStore();
-  const debouncedQuery = useDebouncedValue(searchQuery, 300);
+  const debouncedQuery = useDebouncedValue(searchQuery, 250);
 
   const {
     data,
@@ -58,21 +57,20 @@ export default function HomeScreen() {
     isRefetching,
   } = useGalleryImages(20);
 
-  // Flatten all fetched pages into one flat list
-  const allImages: PicsumImage[] = data?.pages.flatMap((page) => page) ?? [];
+  const allImages = useMemo(
+    () => data?.pages.flatMap((page) => page) ?? [],
+    [data?.pages]
+  );
 
-  // Apply filter chip first, then search — both client-side on fetched pages only
   const filteredImages = useMemo(() => {
     let result = allImages;
 
-    // Filter by author initial bucket
     if (activeFilter === 'A-M') {
       result = result.filter((img) => isAtoM(img.author));
     } else if (activeFilter === 'N-Z') {
       result = result.filter((img) => !isAtoM(img.author));
     }
 
-    // Search by author name (case-insensitive)
     if (debouncedQuery.trim()) {
       const q = debouncedQuery.toLowerCase();
       result = result.filter((img) => img.author.toLowerCase().includes(q));
@@ -81,41 +79,43 @@ export default function HomeScreen() {
     return result;
   }, [allImages, activeFilter, debouncedQuery]);
 
-  const handleEndReached = () => {
-    // Only paginate when not actively filtering — filtering operates on fetched pages;
-    // scrolling more extends what's searchable (per AGENTS.md known assumption).
+  const emptyDescription = useMemo(() => {
+    if (debouncedQuery) {
+      return `No images found for "${debouncedQuery}" in the "${activeFilter}" filter.`;
+    }
+    return `No images match the "${activeFilter}" filter yet. Scroll down to load more.`;
+  }, [debouncedQuery, activeFilter]);
+
+  const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const renderFooter = () => {
-    if (!isFetchingNextPage) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <LoadingSpinner />
-      </View>
-    );
-  };
+  const handleRefresh = useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
-  const renderHeader = () => (
-    <View style={styles.controls}>
-      <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
-      <View style={styles.filterRow}>
-        <FilterChips selected={activeFilter} onSelect={setActiveFilter} />
-      </View>
-    </View>
-  );
+  const handleRetry = useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
-  // ── Initial skeleton load ──────────────────────────────────────────────
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Gallery</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.background}
+        />
+        <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Gallery</Text>
         </View>
-        {renderHeader()}
+        <View style={[styles.controls, { backgroundColor: colors.background }]}>
+          <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
+          <View style={styles.filterRow}>
+            <FilterChips selected={activeFilter} onSelect={setActiveFilter} />
+          </View>
+        </View>
         <FlatList
           data={Array.from({ length: 6 })}
           keyExtractor={(_, i) => i.toString()}
@@ -124,18 +124,21 @@ export default function HomeScreen() {
           contentContainerStyle={styles.listContainer}
           renderItem={() => <SkeletonCard />}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={false}
         />
       </SafeAreaView>
     );
   }
 
-  // ── Full error (no data at all) ────────────────────────────────────────
   if (isError && allImages.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Gallery</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.background}
+        />
+        <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Gallery</Text>
         </View>
         <View style={styles.center}>
           <EmptyState
@@ -143,55 +146,38 @@ export default function HomeScreen() {
             title="Failed to Load Images"
             description="There was a problem fetching images. Check your connection and try again."
             actionLabel="Retry"
-            onAction={() => void refetch()}
+            onAction={handleRetry}
           />
         </View>
       </SafeAreaView>
     );
   }
 
-  // ── Main gallery list ──────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Gallery</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background}
+      />
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Gallery</Text>
       </View>
 
-      <FlatList
-        data={filteredImages}
-        keyExtractor={(item, index) => `${item.id}-${index}`}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.listContainer}
-        ListHeaderComponent={renderHeader}
-        renderItem={({ item }) => (
-          <ImageCard
-            item={item}
-            onPress={() => console.log('Tapped image:', item.id)}
-            isFavorite={isFavourite(item.id)}
-            onFavoriteToggle={() => toggleFavourite(item)}
-          />
-        )}
-        onRefresh={refetch}
-        refreshing={isRefetching}
+      <View style={[styles.controls, { backgroundColor: colors.background }]}>
+        <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
+        <View style={styles.filterRow}>
+          <FilterChips selected={activeFilter} onSelect={setActiveFilter} />
+        </View>
+      </View>
+
+      <GalleryFlatList
+        images={filteredImages}
+        emptyTitle="No Results Found"
+        emptyDescription={emptyDescription}
+        isFetchingNextPage={isFetchingNextPage}
+        isRefetching={isRefetching}
+        onRefresh={handleRefresh}
         onEndReached={handleEndReached}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={renderFooter}
-        ListEmptyComponent={
-          <EmptyState
-            iconName="search-outline"
-            title="No Results Found"
-            description={
-              debouncedQuery
-                ? `No images found for "${debouncedQuery}" in the "${activeFilter}" filter.`
-                : `No images match the "${activeFilter}" filter yet. Scroll down to load more.`
-            }
-          />
-        }
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
       />
     </SafeAreaView>
   );
@@ -200,7 +186,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.light.background,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   center: {
@@ -212,19 +197,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.light.border,
-    backgroundColor: theme.colors.light.background,
   },
   headerTitle: {
     fontSize: theme.typography.titleMedium.fontSize,
     fontWeight: theme.typography.titleMedium.fontWeight,
-    color: theme.colors.light.text,
   },
   controls: {
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
-    backgroundColor: theme.colors.light.background,
     gap: theme.spacing.sm,
   },
   filterRow: {
@@ -237,11 +218,6 @@ const styles = StyleSheet.create({
   row: {
     justifyContent: 'space-between',
   },
-  footerLoader: {
-    paddingVertical: theme.spacing.md,
-    alignItems: 'center',
-  },
-  // ── Skeleton ────────────────────────────────────────────────────────────
   skeletonCard: {
     backgroundColor: '#E5E7EB',
     borderRadius: theme.borderRadius.lg,

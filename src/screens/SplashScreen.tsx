@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, StatusBar } from 'react-native';
-import { theme } from '../theme/theme';
 
 export default function SplashScreen() {
   return (
@@ -18,13 +17,13 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#4F46E5', // Brand Indigo color
+    backgroundColor: '#4F46E5',
     justifyContent: 'center',
     alignItems: 'center',
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xxl,
+    marginBottom: 40,
   },
   appName: {
     fontSize: 36,
@@ -34,11 +33,11 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 14,
-    color: '#E0E7FF', // Light indigo text
-    marginTop: theme.spacing.xs,
+    color: '#E0E7FF',
+    marginTop: 4,
     fontWeight: '500',
   },
   spinner: {
-    marginTop: theme.spacing.md,
+    marginTop: 12,
   },
 });

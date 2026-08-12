@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme/theme';
+import { useTheme } from '../hooks/useTheme';
 
 interface SearchBarProps {
   value: string;
@@ -9,16 +10,25 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-export default function SearchBar({ value, onChangeText, placeholder = 'Search by author…' }: SearchBarProps) {
+function SearchBar({ value, onChangeText, placeholder = 'Search by author…' }: SearchBarProps) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.container}>
-      <Ionicons name="search-outline" size={18} color={theme.colors.light.textSecondary} style={styles.icon} />
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.surfaceVariant,
+          borderColor: colors.border,
+        },
+      ]}
+    >
+      <Ionicons name="search-outline" size={18} color={colors.textSecondary} style={styles.icon} />
       <TextInput
-        style={styles.input}
+        style={[styles.input, { color: colors.text }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={theme.colors.light.placeholder}
+        placeholderTextColor={colors.placeholder}
         returnKeyType="search"
         clearButtonMode="never"
         autoCapitalize="none"
@@ -26,7 +36,7 @@ export default function SearchBar({ value, onChangeText, placeholder = 'Search b
       />
       {value.length > 0 && (
         <TouchableOpacity onPress={() => onChangeText('')} hitSlop={8} activeOpacity={0.7}>
-          <Ionicons name="close-circle" size={18} color={theme.colors.light.textSecondary} />
+          <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
       )}
     </View>
@@ -37,12 +47,10 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.light.surfaceVariant,
     borderRadius: theme.borderRadius.full,
     paddingHorizontal: theme.spacing.md,
     height: 42,
     borderWidth: 1,
-    borderColor: theme.colors.light.border,
   },
   icon: {
     marginRight: theme.spacing.xs,
@@ -50,7 +58,8 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 14,
-    color: theme.colors.light.text,
     padding: 0,
   },
 });
+
+export default React.memo(SearchBar);

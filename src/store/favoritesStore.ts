@@ -45,3 +45,12 @@ export const useFavouritesStore = create<FavouritesState>()(
     }
   )
 );
+
+/** Subscribe only to whether a single image is favourited — avoids re-rendering the whole gallery. */
+export function useIsFavourite(id: string): boolean {
+  return useFavouritesStore((state) => id in state.favourites);
+}
+
+export function useToggleFavourite() {
+  return useFavouritesStore((state) => state.toggleFavourite);
+}
